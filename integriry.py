@@ -1,7 +1,6 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import configparser
 from datetime import datetime
 from IPy import IP, IPSet
 from prompt_toolkit import prompt
@@ -9,12 +8,11 @@ from prompt_toolkit import prompt
 # from prompt_toolkit.history import FileHistory
 from prompt_toolkit import print_formatted_text as pft
 from prompt_toolkit.formatted_text import FormattedText
+import sys
 
 
-__version__ = '0.2.0'
-configFileName = 'config_{}.ini'.format(__version__)
-config = configparser.ConfigParser()
-config.read(configFileName)
+__version__ = '0.3.0'
+__author__ = ''.join(chr(x) for x in [20110, 26174, 36798, 46, 38081, 23725])
 
 _RED = '#ff0066'
 _GREEN = '#44ff00'
@@ -23,7 +21,7 @@ _BLUE = '#6600ff'
 
 # 当前时间的字符串
 def now():
-    return datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S')
+    return datetime.strftime(datetime.now(), '%Y-%m-%d.%H%M%S')
 
 
 def str_red(s):
@@ -57,16 +55,26 @@ class ip_integriry(object):
         return datetime.strftime(datetime.now(), '%Y-%m-%d.%H%M%S')
 
     def get_all_ip(self, all_ip_file):
-        '''获取完整的 IP 范围'''
+        '''
+        获取完整的 IP 范围
+        使用 .readlines() 时，若文件结尾空行大于1，则会报错。
+        使用 .read().strip().split('\n') 则不会。
+        '''
         # all_ip_file = config.get('common', 'all_ip_file')
         with open(all_ip_file, 'r') as f:
             all_ip_list = f.readlines()
-        all_ip = IPSet([IP(x.strip()) for x in all_ip_list])
+        all_ip = IPSet([IP(x.strip(), make_net=True) for x in all_ip_list])
         return all_ip
 
-    def get_input_ip(self, input_ip_str):
-        '''获取输入的 IP'''
-        input_ip = IPSet([IP(x.strip()) for x in input_ip_str.split('\n')])
+    def get_input_ip(self, input_ip_file):
+        '''
+        获取输入的 IP
+        与 get_all_ip() 功能相同，运行原理不同而已
+        '''
+        with open(input_ip_file) as f:
+            input_ip_str = f.read().strip()
+        input_ip = IPSet([IP(x.strip(), make_net=True)
+                          for x in input_ip_str.split('\n')])
         return input_ip
 
     def compare(self, all_ip=IPSet(), input_ip=IPSet()):
@@ -78,31 +86,32 @@ class ip_integriry(object):
         pft(str_blue('运行用时：{:4.2f} s'.format(t1)))
 
     def incomplete(self):
-        result_file = 'result-{}.txt'.format(self.now())
-        with open(result_file, 'w') as f:
-            f.write(self.result)
-        pft(str_blue_green('存在漏报的IP！请注意查收。结果已输出到：', '{}'.format(result_file)))
+        if sys.argv[-1] == '--cli':
+            print('遗漏的 IP 段如下：\n'.format('\n'.join(self.result)))
+        else:
+            result_file = 'result-{}.txt'.format(self.now())
+            with open(result_file, 'w') as f:
+                f.write(self.result)
+            pft(str_blue_green('存在漏报的IP！请注意查收。结果已输出到：', '{}'.format(result_file)))
 
     def complete(self):
         pft(str_green('本次完整性检查无问题，好棒！'))
 
     def main(self):
         '''入口'''
-        title = str_green('*** 欢迎使用IP地址完整性核查工具 ***')
-        pft(title)
+        title = '*** 欢迎使用IP地址完整性核查工具 ***'
+        pft(str_green(title))
+        print('→→ 版本：V{}\n→→ 作者：{}'.format(__version__, __author__))
         # session = PromptSession(history=FileHistory('.myhistory'))
         pft(str_red('输入包含完整IP地址范围的文件名：(默认 all.txt)'))
         _all_ip_file = prompt('> ')
         if(_all_ip_file == ''):
             _all_ip_file = 'all.txt'
-        all_ip = self.get_all_ip(_all_ip_file)
-        pft(str_red('输入要验证的文件名：(默认 ip.txt)'))
+        all_ip = self.get_input_ip(_all_ip_file)
+        pft(str_red('输入要验证的文件名：(默认 input.txt)'))
         _input_ip_file = prompt('> ')
         if(_input_ip_file == ''):
-            _input_ip_file = 'ip.txt'
-        with open(_input_ip_file) as f:
-            input_ip_str = f.read()
-
+            _input_ip_file = 'input.txt'
         pft(str_red('选择输入的IP格式：(默认 1)'))
         _ip_format = prompt('1. 每行1个IP\n2. 每行含2个IP（起、止IP）\n> ')
         if _ip_format == 1:
@@ -112,7 +121,7 @@ class ip_integriry(object):
             pass
         else:
             _ip_format = self.IP_FORMAT
-        input_ip = self.get_input_ip(input_ip_str)
+        input_ip = self.get_input_ip(_input_ip_file)
         self.compare(all_ip, input_ip)
         print('--------')
         if(self.result):
@@ -128,5 +137,5 @@ if __name__ == '__main__':
     except Exception as err:
         print('出错啦。错误信息：')
         print(err)
-    print('\n>>>>>>>>>>\n按任意键退出...')
+    print('\n>>>>>>>>>>\n按任意键退出...\n')
     input()
