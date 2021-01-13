@@ -11,7 +11,7 @@ from prompt_toolkit.formatted_text import FormattedText
 import sys
 
 
-__version__ = '0.3.0'
+__version__ = '0.4.0'
 __author__ = ''.join(chr(x) for x in [20110, 26174, 36798, 46, 38081, 23725])
 
 _RED = '#ff0066'
@@ -63,7 +63,14 @@ class ip_integriry(object):
         # all_ip_file = config.get('common', 'all_ip_file')
         with open(all_ip_file, 'r') as f:
             all_ip_list = f.readlines()
-        all_ip = IPSet([IP(x.strip(), make_net=True) for x in all_ip_list])
+        # all_ip = IPSet([IP(x.strip(), make_net=True) for x in all_ip_list])
+        all_ip = IPSet()
+        for x in all_ip_list:
+            try:
+                _i = IP(x.strip(),make_net=True)
+                all_ip.add(_i)
+            except Exception as err:
+                pft(str_red('忽略无效ip：{}，\n\t错误原因：{}'.format(x,err)))
         return all_ip
 
     def get_input_ip(self, input_ip_file):
@@ -73,8 +80,14 @@ class ip_integriry(object):
         '''
         with open(input_ip_file) as f:
             input_ip_str = f.read().strip()
-        input_ip = IPSet([IP(x.strip(), make_net=True)
-                          for x in input_ip_str.split('\n')])
+        #input_ip = IPSet([IP(x.strip(), make_net=True) for x in input_ip_str.split('\n')])
+        input_ip = IPSet()
+        for x in input_ip_str.split('\n'):
+            try:
+                _i = IP(x.strip(),make_net=True)
+                input_ip.add(_i)
+            except Exception as err:
+                pft(str_red('忽略无效ip：{}，\n\t错误原因：{}'.format(x,err)))
         return input_ip
 
     def compare(self, all_ip=IPSet(), input_ip=IPSet()):
@@ -103,16 +116,16 @@ class ip_integriry(object):
         pft(str_green(title))
         print('→→ 版本：V{}\n→→ 作者：{}'.format(__version__, __author__))
         # session = PromptSession(history=FileHistory('.myhistory'))
-        pft(str_red('输入包含完整IP地址范围的文件名：(默认 all.txt)'))
+        pft(str_blue('输入包含完整IP地址范围的文件名：(默认 all.txt)'))
         _all_ip_file = prompt('> ')
         if(_all_ip_file == ''):
             _all_ip_file = 'all.txt'
         all_ip = self.get_input_ip(_all_ip_file)
-        pft(str_red('输入要验证的文件名：(默认 input.txt)'))
+        pft(str_blue('输入要验证的文件名：(默认 input.txt)'))
         _input_ip_file = prompt('> ')
         if(_input_ip_file == ''):
             _input_ip_file = 'input.txt'
-        pft(str_red('选择输入的IP格式：(默认 1)'))
+        pft(str_blue('选择输入的IP格式：(默认 1)'))
         _ip_format = prompt('1. 每行1个IP\n2. 每行含2个IP（起、止IP）\n> ')
         if _ip_format == 1:
             pass
@@ -131,11 +144,11 @@ class ip_integriry(object):
 
 
 if __name__ == '__main__':
-    try:
-        result = ip_integriry()
-        result.main()
-    except Exception as err:
-        print('出错啦。错误信息：')
-        print(err)
+    # try:
+    result = ip_integriry()
+    result.main()
+    # except Exception as err:
+        # print('出错啦。错误信息：')
+        # print(err)
     print('\n>>>>>>>>>>\n按任意键退出...\n')
     input()
