@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from datetime import datetime
-from IPy import IP, IPSet
+from IPy import IPint, IP, IPSet
 from prompt_toolkit import prompt
 # from prompt_toolkit import PromptSession
 # from prompt_toolkit.history import FileHistory
@@ -162,21 +162,29 @@ def ip_from_last(_ip: str):
     except:
         pft(str_red('IP格式不对，请检查。'))
         exit('>>运行结束。')
-
-    def ip_len(a, b):
-        return IP(b).int()-IP(a).int()+1
-    ip_len_bin_str = '{:b}'.format(ip_len(_start, _end))
-    nn = []
-    for x in range(len(ip_len_bin_str)):
-        if ip_len_bin_str[x] == "1":
-            nn.append(x)
-    _ver_len = 129 if _ip.find(':') != -1 else 33
-    ll = [_ver_len-len(ip_len_bin_str)+x for x in nn]
+    _start_int = IPint(_start).ip
+    _end_int = IPint(_end).ip
+    ip_len = _end_int-_start_int+1
+    # IP 范围个数转成二进制文本
+    ip_len_bin_str = '{:b}'.format(ip_len)
+    # 计算二进制文本的长度
+    _len = len(ip_len_bin_str)
+    # 判断 ipv4 or ipv6
+    _ver_len = 128 if _ip.find(':') != -1 else 32
+    # 计算最小掩码
+    _mask_min = _ver_len-_len+1
+    # 构建计算结果
     _res = []
-    for x in ll:
-        _x = IP(_start).make_net(x)
-        _res.append(_x.strNormal())
-        _start = IP(_x[-1].int()+1).strNormal()
+    _res_1 = IP(_start).make_net(_mask_min)-IP(_start_int-1)
+    for x in _res_1:
+        if x.ip > _start_int:
+            _res.append(x.strCompressed())
+    _res.append(IP(_start_int+2**(_len-1)).make_net(_mask_min).strCompressed())
+    _res_2 = IP(_end).make_net(_mask_min)-IP(_end_int+1)
+    for x in _res_2:
+        if x.ip < _end_int:
+            _res.append(x.strCompressed())
+    print('res',_res)
     return _res
 
 
@@ -216,5 +224,5 @@ if __name__ == '__main__':
         print(ip_merge(args[2]))
     else:
         print('输入有误，请查看使用说明！')
-    print('\n>>>>>>>>>>\n按任意键退出...\n')
+    print('\n>>>>>>>>>>\n按回车退出...\n')
     input()
