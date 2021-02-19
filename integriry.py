@@ -11,7 +11,7 @@ from prompt_toolkit.formatted_text import FormattedText
 import sys
 import traceback
 
-__version__ = '0.5.0'
+__version__ = '0.6.0'
 __author__ = ''.join(chr(x) for x in [20110, 26174, 36798, 46, 38081, 23725])
 
 _RED = '#ff0066'
@@ -65,10 +65,20 @@ class ip_integriry(object):
         input_ip = IPSet()
         for x in input_ip_str:
             try:
+                # 尝试按照 ip / mask 解析
                 _i = IP(x.strip(), make_net=True)
                 input_ip.add(_i)
             except Exception as err:
-                pft(str_red('忽略无效ip：{}，\n\t错误原因：{}'.format(x, err)))
+                # 尝试按照 ip_start - ip_end 解析
+                try:
+                    _i = ip_from_last(x.strip(),True)
+                    for xx in _i:
+                        input_ip.add(xx)
+                except Exception as err:
+                    pft(str_red('忽略无效 ip：{}，\n\t错误原因：{}'.format(x, err)))
+        _f = '_ip-{}.txt'.format(input_ip_file)
+        _write_file(_f,'\n'.join([x.strCompressed() for x in input_ip]))
+        print('输出 input_ip 到 {} >>'.format(_f))
         return input_ip
 
     def compare(self, all_ip=IPSet(), input_ip=IPSet()) -> None:
@@ -80,7 +90,7 @@ class ip_integriry(object):
         pft(str_blue_green('运行用时：', '{:4.2f} s'.format(t1)))
 
     def incomplete(self) -> None:
-        pft(str_blue('存在漏报的IP：'))
+        pft(str_blue('存在漏报的 IP：'))
         if sys.argv[-1] == '--cli':
             print('\n'.join(self.result))
         else:
@@ -93,11 +103,12 @@ class ip_integriry(object):
 
     def main(self) -> None:
         '''入口'''
-        title = '*** 欢迎使用IP地址完整性核查工具 ***'
+        title = '*** 欢迎使用 IP 地址完整性核查工具 ***'
         pft(str_green(title))
         print('→→ 版本：V{}\n→→ 作者：{}'.format(__version__, __author__))
+        pft(str_red('更多功能请阅读 README 或命令行运行：{} help'.format(sys.argv[0])))
         # session = PromptSession(history=FileHistory('.myhistory'))
-        pft(str_blue('输入包含完整IP地址范围的文件名：(默认 all.txt)'))
+        pft(str_blue('输入包含完整 IP 地址范围的文件名：(默认 all.txt)'))
         _all_ip_file = prompt('> ')
         if(_all_ip_file == ''):
             _all_ip_file = 'all.txt'
@@ -106,15 +117,15 @@ class ip_integriry(object):
         _input_ip_file = prompt('> ')
         if(_input_ip_file == ''):
             _input_ip_file = 'input.txt'
-        pft(str_blue('选择输入的IP格式：(默认 1)'))
-        _ip_format = prompt('1. 每行1个IP\n2. 每行含2个IP（起、止IP）\n> ')
-        if _ip_format == 1:
-            pass
-        elif _ip_format == 2:
-            # todo
-            pass
-        else:
-            _ip_format = self.IP_FORMAT
+        # pft(str_blue('选择输入的 IP 格式：(默认 1)'))
+        # _ip_format = prompt('1. 每行 1 个 IP\n2. 每行含 2 个 IP（起、止 IP）\n> ')
+        # if _ip_format == 1:
+        #     pass
+        # elif _ip_format == 2:
+        #     # todo
+        #     pass
+        # else:
+        #     _ip_format = self.IP_FORMAT
         input_ip = self.get_input_ip(_input_ip_file)
         self.compare(all_ip, input_ip)
         print('--------')
@@ -148,13 +159,17 @@ def ip_compare(filename_all: str, filename_in: str):
 
 
 def ip_to_last(_ip) -> str:
-    '''ip/mask 转换为 ip_start-ip_end'''
+    '''ip / mask 转换为 ip_start - ip_end'''
     ip = _ip if isinstance(_ip, IP) else IP(_ip)
     return '{}\t{}'.format(ip[0].strCompressed(), ip[-1].strCompressed())
 
 
-def ip_from_last(_ip: str) -> list:
-    '''ip_start-ip_end 转换为 ip/mask'''
+def ip_from_last(_ip: str, ip_type: bool = False) -> list:
+    '''
+    ip_start - ip_end 转换为 ip / mask
+
+    ip_type == Ture: return [IP()] else : [ip_str]
+    '''
     _start, _end = '', ''
     try:
         if '\t' in _ip:
@@ -162,7 +177,7 @@ def ip_from_last(_ip: str) -> list:
         if '-' in _ip:
             _start, _end = _ip.split('-')
     except:
-        pft(str_red('IP格式不对，请检查。'))
+        pft(str_red('IP 格式不对，请检查。'))
         exit('>>运行结束。')
     _start_int = IPint(_start).ip
     _end_int = IPint(_end).ip
@@ -179,14 +194,17 @@ def ip_from_last(_ip: str) -> list:
     _res = []
     _res_1 = IP(_start).make_net(_mask_min)-IP(_start_int-1)
 
+    def ip_handler(arg: IP):
+        return arg if ip_type else arg.strCompressed()
     for x in _res_1:
         if x.ip >= _start_int:
-            _res.append(x.strCompressed())
-    _res.append(IP(_start_int+2**(_len-1)).make_net(_mask_min).strCompressed())
+            _res.append(ip_handler(x))
+    _middle = IP(_start_int+2**(_len-1)).make_net(_mask_min)
+    _res.append(ip_handler(_middle))
     _res_2 = IP(_end).make_net(_mask_min)-IP(_end_int+1)
     for x in _res_2:
         if x.ip <= _end_int:
-            _res.append(x.strCompressed())
+            _res.append(ip_handler(x))
     return _res
 
 
@@ -201,7 +219,7 @@ def ip_convert(_input: str) -> str:
             ip_list = [IP(x.strip()) for x in _ip_list]
             # 每行一个 IP()，则转换成 ip_start-ip_end
             for x in ip_list:
-                res.append(ip_to_last(x.strip()))
+                res.append(ip_to_last(x))
         except:
             for x in _ip_list:
                 res.extend(ip_from_last(x.strip()))
@@ -215,9 +233,32 @@ def ip_convert(_input: str) -> str:
         return res
 
 
-def ip_merge(file_name: str):
+def ip_merge(_input: str):
     '''IP 地址合并计算'''
-    ...
+    res = IPSet()
+    if _input == '-f':
+        # 传入文件名
+        ip_list = _read_file(sys.argv[3])
+    else:
+        # 传入若干 ip
+        ip_list = sys.argv[2:]
+
+    _ip_list = []
+    for x in ip_list:
+        if x.find('/') == -1:
+            # 先转换为 ip / mask 格式
+            _ip_list.extend(ip_from_last(x.strip(), True))
+        else:
+            res.add(IP(x.strip()))
+    for xx in _ip_list:
+        res.add(xx)
+    return '\n'.join([x.strCompressed() for x in res])
+
+
+def help():
+    self_name = sys.argv[0]
+    print(self_name)
+    pft(str_red('更多使用说明请查看 README.pdf'))
 
 
 if __name__ == '__main__':
@@ -234,6 +275,8 @@ if __name__ == '__main__':
             print(ip_convert(args[2]))
         elif args[1] == 'merge' or args[1] == 'm':
             print(ip_merge(args[2]))
+        elif args[1] == 'help' or args[1] == 'h':
+            help()
         else:
             print('输入有误，请查看使用说明！')
     except Exception as err:
