@@ -11,7 +11,7 @@ from prompt_toolkit.formatted_text import FormattedText
 import sys
 import traceback
 
-__version__ = '0.6.0'
+__version__ = '0.7.0'
 __author__ = ''.join(chr(x) for x in [20110, 26174, 36798, 46, 38081, 23725])
 
 _RED = '#ff0066'
@@ -42,15 +42,10 @@ def str_blue_green(s1, s2):
 
 
 class ip_integriry(object):
-    '''完整性类
-    IP_FORMAT :
-    1: single
-    2: start-end
-    '''
+    '''完整性类'''
 
-    def __init__(self, input_str=''):
-        self.IP_FORMAT = 1
-        self.input_str = input_str
+    def __init__(self):
+        ...
 
     def now(self) -> str:
         return datetime.strftime(datetime.now(), '%Y-%m-%d.%H%M%S')
@@ -71,14 +66,11 @@ class ip_integriry(object):
             except Exception as err:
                 # 尝试按照 ip_start - ip_end 解析
                 try:
-                    _i = ip_from_last(x.strip(),True)
+                    _i = ip_from_last(x.strip(), True)
                     for xx in _i:
                         input_ip.add(xx)
                 except Exception as err:
                     pft(str_red('忽略无效 ip：{}，\n\t错误原因：{}'.format(x, err)))
-        _f = '_ip-{}.txt'.format(input_ip_file)
-        _write_file(_f,'\n'.join([x.strCompressed() for x in input_ip]))
-        print('输出 input_ip 到 {} >>'.format(_f))
         return input_ip
 
     def compare(self, all_ip=IPSet(), input_ip=IPSet()) -> None:
@@ -117,15 +109,6 @@ class ip_integriry(object):
         _input_ip_file = prompt('> ')
         if(_input_ip_file == ''):
             _input_ip_file = 'input.txt'
-        # pft(str_blue('选择输入的 IP 格式：(默认 1)'))
-        # _ip_format = prompt('1. 每行 1 个 IP\n2. 每行含 2 个 IP（起、止 IP）\n> ')
-        # if _ip_format == 1:
-        #     pass
-        # elif _ip_format == 2:
-        #     # todo
-        #     pass
-        # else:
-        #     _ip_format = self.IP_FORMAT
         input_ip = self.get_input_ip(_input_ip_file)
         self.compare(all_ip, input_ip)
         print('--------')
@@ -171,14 +154,16 @@ def ip_from_last(_ip: str, ip_type: bool = False) -> list:
     ip_type == Ture: return [IP()] else : [ip_str]
     '''
     _start, _end = '', ''
-    try:
-        if '\t' in _ip:
-            _start, _end = _ip.split('\t')
-        if '-' in _ip:
-            _start, _end = _ip.split('-')
-    except:
-        pft(str_red('IP 格式不对，请检查。'))
-        exit('>>运行结束。')
+    if '\t' in _ip:
+        _start, _end = _ip.split('\t')
+    elif '-' in _ip:
+        _start, _end = _ip.split('-')
+    else:
+        try:
+            return ip_to_last(_ip)
+        except:
+            pft(str_red('IP 格式不对，请检查。'))
+            exit('>>运行结束。')
     _start_int = IPint(_start).ip
     _end_int = IPint(_end).ip
     ip_len = _end_int-_start_int+1
@@ -191,20 +176,25 @@ def ip_from_last(_ip: str, ip_type: bool = False) -> list:
     # 计算最小掩码
     _mask_min = _ver_len-_len+1
     # 构建计算结果
-    _res = []
-    _res_1 = IP(_start).make_net(_mask_min)-IP(_start_int-1)
-
     def ip_handler(arg: IP):
         return arg if ip_type else arg.strCompressed()
-    for x in _res_1:
-        if x.ip >= _start_int:
-            _res.append(ip_handler(x))
-    _middle = IP(_start_int+2**(_len-1)).make_net(_mask_min)
-    _res.append(ip_handler(_middle))
-    _res_2 = IP(_end).make_net(_mask_min)-IP(_end_int+1)
-    for x in _res_2:
-        if x.ip <= _end_int:
-            _res.append(ip_handler(x))
+    _res = []
+    _res_1 = IP(_start).make_net(_mask_min)
+    if _res_1.ip < _start_int:
+        _res_1 -= IP(_start_int-1)
+        for x in _res_1:
+            if x.ip >= _start_int:
+                _res.append(ip_handler(x))
+        _middle = IP(_start_int+2**(_len-1)).make_net(_mask_min)
+        _res.append(ip_handler(_middle))
+    else:
+        _res.append(ip_handler(_res_1))
+    _res_2 = IP(_end).make_net(_mask_min)
+    if _res_2[-1].ip > _end_int:
+        _res_2 -= IP(_end_int+1)
+        for x in _res_2:
+            if x.ip <= _end_int:
+                _res.append(ip_handler(x))
     return _res
 
 
@@ -214,15 +204,13 @@ def ip_convert(_input: str) -> str:
         # 传入文件名
         res = []
         _ip_list = _read_file(sys.argv[3])
-        try:
-            # 尝试将 ip/mask 转换为 IP()
-            ip_list = [IP(x.strip()) for x in _ip_list]
-            # 每行一个 IP()，则转换成 ip_start-ip_end
-            for x in ip_list:
-                res.append(ip_to_last(x))
-        except:
-            for x in _ip_list:
-                res.extend(ip_from_last(x.strip()))
+        for x in _ip_list:
+            try:
+                # 尝试将 ip/mask 转换为 IP()
+                # 每行一个 IP()，则转换成 ip_start-ip_end
+                res.append(ip_to_last(x.strip()))
+            except:
+                    res.extend(ip_from_last(x.strip()))
         return '\n'.join(res)
     else:
         try:
