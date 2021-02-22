@@ -11,7 +11,7 @@ from prompt_toolkit.formatted_text import FormattedText
 import sys
 import traceback
 
-__version__ = '0.7.0'
+__version__ = '0.8.0'
 __author__ = ''.join(chr(x) for x in [20110, 26174, 36798, 46, 38081, 23725])
 
 _RED = '#ff0066'
@@ -41,7 +41,7 @@ def str_blue_green(s1, s2):
     return FormattedText([(_BLUE, s1), (_GREEN, s2)])
 
 
-class ip_integriry(object):
+class ip_integrity(object):
     '''完整性类'''
 
     def __init__(self):
@@ -95,10 +95,7 @@ class ip_integriry(object):
 
     def main(self) -> None:
         '''入口'''
-        title = '*** 欢迎使用 IP 地址完整性核查工具 ***'
-        pft(str_green(title))
-        print('→→ 版本：V{}\n→→ 作者：{}'.format(__version__, __author__))
-        pft(str_red('更多功能请阅读 README 或命令行运行：{} help'.format(sys.argv[0])))
+        help()
         # session = PromptSession(history=FileHistory('.myhistory'))
         pft(str_blue('输入包含完整 IP 地址范围的文件名：(默认 all.txt)'))
         _all_ip_file = prompt('> ')
@@ -138,7 +135,12 @@ def _write_file(filename: str, res: str) -> None:
 
 
 def ip_compare(filename_all: str, filename_in: str):
-    ...
+    '''对比找出遗漏 IP'''
+    obj = ip_integrity()
+    all_ip = obj.get_input_ip(filename_all)
+    input_ip = obj.get_input_ip(filename_in)
+    obj.compare(all_ip, input_ip)
+    obj.incomplete() if obj.result else obj.complete()
 
 
 def ip_to_last(_ip) -> str:
@@ -176,6 +178,7 @@ def ip_from_last(_ip: str, ip_type: bool = False) -> list:
     # 计算最小掩码
     _mask_min = _ver_len-_len+1
     # 构建计算结果
+
     def ip_handler(arg: IP):
         return arg if ip_type else arg.strCompressed()
     _res = []
@@ -210,7 +213,7 @@ def ip_convert(_input: str) -> str:
                 # 每行一个 IP()，则转换成 ip_start-ip_end
                 res.append(ip_to_last(x.strip()))
             except:
-                    res.extend(ip_from_last(x.strip()))
+                res.extend(ip_from_last(x.strip()))
         return '\n'.join(res)
     else:
         try:
@@ -243,28 +246,46 @@ def ip_merge(_input: str):
     return '\n'.join([x.strCompressed() for x in res])
 
 
-def help():
+def help(more=False):
     self_name = sys.argv[0]
     print(self_name)
+    title = '*** 欢迎使用 IP 地址完整性核查工具 ***'
+    pft(str_green(title))
+    print('→→ 版本：V{}\n→→ 作者：{}'.format(__version__, __author__))
+    pft(str_red('需要命令帮助，请运行：{} help'.format(self_name)))
     pft(str_red('更多使用说明请查看 README.pdf'))
+    if more:
+        print('功能1：对比，找出遗漏的 IP 地址')
+        print('功能2：IP 地址格式转换（自动识别 ip / mask 与 ip_start - ip_end）')
+        print('功能3：IP 地址段合并')
+        print('\n')
+        pft(str_blue('使用示例：'))
+        pft(str_green('{} cp all.txt input.txt'.format(self_name)))
+        pft(str_green('{} cv 192.168.0.128-192.168.2.3'.format(self_name)))
+        pft(str_green('{} cv 2021:abcd::f00/120'.format(self_name)))
+        pft(str_green('{} cv -f input.txt > result.txt'.format(self_name)))
+        pft(str_green('{} m 192.168.0.0/25 192.168.0.128/25 192.168.1.0/24'.format(self_name)))
+        pft(str_green('{} m input.txt'.format(self_name)))
+        print('\n\n')
+        print('~~~~ !!!不会使用请仔细阅读 README.pdf !!!')
 
 
 if __name__ == '__main__':
     args = sys.argv
     try:
         if len(args) == 1:
-            result = ip_integriry()
+            result = ip_integrity()
             result.main()
             print('\n>>>>>>>>>>\n按回车退出...\n')
             input()
         elif args[1] == 'compare' or args[1] == 'cp':
-            print(ip_convert(args[2]))
+            ip_compare(args[2], args[3])
         elif args[1] == 'convert' or args[1] == 'cv':
             print(ip_convert(args[2]))
         elif args[1] == 'merge' or args[1] == 'm':
             print(ip_merge(args[2]))
         elif args[1] == 'help' or args[1] == 'h':
-            help()
+            help(True)
         else:
             print('输入有误，请查看使用说明！')
     except Exception as err:
