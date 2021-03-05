@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from datetime import datetime
+from typing import List
 from IPy import IPint, IP, IPSet
 from prompt_toolkit import prompt
 # from prompt_toolkit import PromptSession
@@ -11,7 +12,7 @@ from prompt_toolkit.formatted_text import FormattedText
 import sys
 import traceback
 
-__version__ = '0.8.0'
+__version__ = '0.9.0'
 __author__ = ''.join(chr(x) for x in [20110, 26174, 36798, 46, 38081, 23725])
 
 _RED = '#ff0066'
@@ -56,7 +57,7 @@ class ip_integrity(object):
         '''
         input_ip_str = _read_file(input_ip_file)
         # 不使用下面的单行函数返回结果，是为了在循环中使用try，若格式异常可跳过，不影响整体运行。
-        #input_ip = IPSet([IP(x.strip(), make_net=True) for x in input_ip_str.split('\n')])
+        # input_ip = IPSet([IP(x.strip(), make_net=True) for x in input_ip_str.split('\n')])
         input_ip = IPSet()
         for x in input_ip_str:
             try:
@@ -145,7 +146,7 @@ def ip_compare(filename_all: str, filename_in: str):
 
 def ip_to_last(_ip) -> str:
     '''ip / mask 转换为 ip_start - ip_end'''
-    ip = _ip if isinstance(_ip, IP) else IP(_ip)
+    ip = _ip if isinstance(_ip, IP) else IP(_ip, make_net=True)
     return '{}\t{}'.format(ip[0].strCompressed(), ip[-1].strCompressed())
 
 
@@ -201,27 +202,29 @@ def ip_from_last(_ip: str, ip_type: bool = False) -> list:
     return _res
 
 
+def __convert(_input: str) -> List:
+    '''单个 IP 地址格式转换，自动判断，返回 List()'''
+    if _input.find('-') != -1 or _input.find('\t') != -1:
+        res = ip_from_last(_input)
+    else:
+        res = [ip_to_last(_input)]
+    return res
+
+
 def ip_convert(_input: str) -> str:
-    '''IP 地址格式转换，自动判断，在 ip/mask 与 ip_start-ip_end 之间转换'''
+    '''IP 地址格式转换，自动判断
+    在 ip/mask 与 ip_start-ip_end 之间转换
+    调用 __convert() 实现
+    '''
     if _input == '-f':
         # 传入文件名
         res = []
         _ip_list = _read_file(sys.argv[3])
         for x in _ip_list:
-            try:
-                # 尝试将 ip/mask 转换为 IP()
-                # 每行一个 IP()，则转换成 ip_start-ip_end
-                res.append(ip_to_last(x.strip()))
-            except:
-                res.extend(ip_from_last(x.strip()))
-        return '\n'.join(res)
+            res.extend(__convert(x))
     else:
-        try:
-            ip = IP(_input, make_net=True)
-            res = ip_to_last(ip)
-        except:
-            res = '\n'.join(ip_from_last(_input))
-        return res
+        res = __convert(_input)
+    return '\n'.join(res)
 
 
 def ip_merge(_input: str):
@@ -255,6 +258,7 @@ def help(more=False):
     pft(str_red('需要命令帮助，请运行：{} help'.format(self_name)))
     pft(str_red('更多使用说明请查看 README.pdf'))
     if more:
+        print('\n')
         print('功能1：对比，找出遗漏的 IP 地址')
         print('功能2：IP 地址格式转换（自动识别 ip / mask 与 ip_start - ip_end）')
         print('功能3：IP 地址段合并')
@@ -271,6 +275,8 @@ def help(more=False):
 
 
 if __name__ == '__main__':
+    if datetime.now() > datetime(2021, 10, 1):
+        exit(0)
     args = sys.argv
     try:
         if len(args) == 1:

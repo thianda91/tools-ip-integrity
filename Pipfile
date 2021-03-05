@@ -5,6 +5,10 @@ verify_ssl = true
 
 [packages]
 IPy = "*"
+prompt-toolkit = "*"
 
 [requires]
 python_version = "3.7"
+
+[dev-packages]
+pyinstaller = "*"
