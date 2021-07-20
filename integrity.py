@@ -165,7 +165,7 @@ def ip_from_last(_ip: str, ip_type: bool = False) -> list:
         try:
             return ip_to_last(_ip)
         except:
-            pft(str_red('IP 格式不对，请检查。'))
+            pft(str_red('IP 格式不对，请检查。'), str_blue_green('如果是文件记得加', ' -f'))
             exit('>>运行结束。')
     _start_int = IPint(_start).ip
     _end_int = IPint(_end).ip
