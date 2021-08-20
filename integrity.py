@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from datetime import datetime
-from typing import List
 from IPy import IPint, IP, IPSet
 from prompt_toolkit import prompt
 # from prompt_toolkit import PromptSession
@@ -12,7 +11,7 @@ from prompt_toolkit.formatted_text import FormattedText
 import sys
 import traceback
 
-__version__ = '0.9.0'
+__version__ = '0.10.0'
 __author__ = ''.join(chr(x) for x in [20110, 26174, 36798, 46, 38081, 23725])
 
 _RED = '#ff0066'
@@ -189,21 +188,24 @@ def ip_from_last(_ip: str, ip_type: bool = False) -> list:
         for x in _res_1:
             if x.ip >= _start_int:
                 _res.append(ip_handler(x))
-        _middle = IP(_start_int+2**(_len-1)).make_net(_mask_min)
-        _res.append(ip_handler(_middle))
     else:
         _res.append(ip_handler(_res_1))
+    _middle = IP(_start_int+2**(_len-1)).make_net(_mask_min)
     _res_2 = IP(_end).make_net(_mask_min)
+    if _middle.ip != _res_2.ip:
+        _res.append(ip_handler(_middle))
     if _res_2[-1].ip > _end_int:
         _res_2 -= IP(_end_int+1)
         for x in _res_2:
             if x.ip <= _end_int:
                 _res.append(ip_handler(x))
+    else:
+        _res.append(ip_handler(_res_2))
     return _res
 
 
-def __convert(_input: str) -> List:
-    '''单个 IP 地址格式转换，自动判断，返回 List()'''
+def __convert(_input: str) -> list:
+    '''单个 IP 地址格式转换，自动判断，返回 list()'''
     if _input.find('-') != -1 or _input.find('\t') != -1:
         res = ip_from_last(_input)
     else:
@@ -275,7 +277,7 @@ def help(more=False):
 
 
 if __name__ == '__main__':
-    if datetime.now() > datetime(2021, 10, 1):
+    if datetime.now() > datetime(2022, 12, 31):
         exit(0)
     args = sys.argv
     try:
