@@ -8,10 +8,10 @@ from prompt_toolkit import prompt
 # from prompt_toolkit.history import FileHistory
 from prompt_toolkit import print_formatted_text as pft
 from prompt_toolkit.formatted_text import FormattedText
-import sys
+from sys import argv, exit
 import traceback
 
-__version__ = '0.10.0'
+__version__ = '0.11.0'
 __author__ = ''.join(chr(x) for x in [20110, 26174, 36798, 46, 38081, 23725])
 
 _RED = '#ff0066'
@@ -83,7 +83,7 @@ class ip_integrity(object):
 
     def incomplete(self) -> None:
         pft(str_blue('存在漏报的 IP：'))
-        if sys.argv[-1] == '--cli':
+        if argv[-1] == '--cli':
             print('\n'.join(self.result))
         else:
             result_file = '遗漏.-{}.txt'.format(self.now())
@@ -190,6 +190,9 @@ def ip_from_last(_ip: str, ip_type: bool = False) -> list:
                 _res.append(ip_handler(x))
     else:
         _res.append(ip_handler(_res_1))
+        if _res_1[-1].ip == _end_int:
+            # 转换结果恰好为一行
+            return _res
     _middle = IP(_start_int+2**(_len-1)).make_net(_mask_min)
     _res_2 = IP(_end).make_net(_mask_min)
     if _middle.ip != _res_2.ip:
@@ -221,7 +224,7 @@ def ip_convert(_input: str) -> str:
     if _input == '-f':
         # 传入文件名
         res = []
-        _ip_list = _read_file(sys.argv[3])
+        _ip_list = _read_file(argv[3])
         for x in _ip_list:
             res.extend(__convert(x))
     else:
@@ -234,14 +237,14 @@ def ip_merge(_input: str):
     res = IPSet()
     if _input == '-f':
         # 传入文件名
-        ip_list = _read_file(sys.argv[3])
+        ip_list = _read_file(argv[3])
     else:
         # 传入若干 ip
-        ip_list = sys.argv[2:]
+        ip_list = argv[2:]
 
     _ip_list = []
     for x in ip_list:
-        if x.find('/') == -1:
+        if x.find('-') != -1:
             # 先转换为 ip / mask 格式
             _ip_list.extend(ip_from_last(x.strip(), True))
         else:
@@ -252,7 +255,7 @@ def ip_merge(_input: str):
 
 
 def help(more=False):
-    self_name = sys.argv[0]
+    self_name = argv[0]
     print(self_name)
     title = '*** 欢迎使用 IP 地址完整性核查工具 ***'
     pft(str_green(title))
@@ -271,7 +274,7 @@ def help(more=False):
         pft(str_green('{} cv 2021:abcd::f00/120'.format(self_name)))
         pft(str_green('{} cv -f input.txt > result.txt'.format(self_name)))
         pft(str_green('{} m 192.168.0.0/25 192.168.0.128/25 192.168.1.0/24'.format(self_name)))
-        pft(str_green('{} m input.txt'.format(self_name)))
+        pft(str_green('{} m -f input.txt'.format(self_name)))
         print('\n\n')
         print('~~~~ !!!不会使用请仔细阅读 README.pdf !!!')
 
@@ -279,7 +282,7 @@ def help(more=False):
 if __name__ == '__main__':
     if datetime.now() > datetime(2022, 12, 31):
         exit(0)
-    args = sys.argv
+    args = argv
     try:
         if len(args) == 1:
             result = ip_integrity()
